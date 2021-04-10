@@ -1,0 +1,10 @@
+name := "render-math"
+
+version := "0.1"
+
+scalaVersion := "2.13.5"
+
+idePackagePrefix := Some("de.unruh.rendermath")
+
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % "test"
+libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.2.5"
