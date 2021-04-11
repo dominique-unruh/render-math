@@ -16,13 +16,16 @@ class ParserTest extends AnyFunSuite {
       println(m)
   }
 
-  test("parse") {
+  test("parse 1+2") {
     val text = "1+2"
     val tokens = tokenize(text)
     println("TOKENS", tokens)
     val math = Parser.parse(tokens)
     println("MATH " + math)
+    assert(math.toString == "arith1.plus(1, 2)")
   }
 
-
+/*  test("parse \\frac") {
+    val text = "\\frac{1}{2}"
+  }*/
 }

@@ -127,8 +127,10 @@ final class Grammar[Text, Result] private (private val inverted2Rules: Map[Len2R
         val resultToAdd = results2ToAdd.head
         results2ToAdd = results2ToAdd.tail
         results1 = resultToAdd :: results1
+//        println(s"apply1: $resultToAdd")
         for (lhs <- inverted1Rules.getOrElse(Len1Rhs(resultToAdd.nonterminal), Nil)
              if lhs.rhsMinPriority <= resultToAdd.maxPriority) {
+//          println(s"rule: $lhs")
           val newResult = ParseResultNormal(lhs.nonterminal, lhs.maxPriority,
             lhs.constructor(Seq(resultToAdd.asInstanceOf[ParseResultNormal].result)))
           results2ToAdd = newResult :: results2ToAdd
@@ -142,6 +144,9 @@ final class Grammar[Text, Result] private (private val inverted2Rules: Map[Len2R
     val table : Array[Array[Seq[ParseResult]]] = new Array(length)
     val bottomRow : Array[Seq[ParseResult]] = Array.from(text.iterator.map { pr =>
       apply1Rules(Seq(pr)) })
+
+//    println("bottomRow "+ bottomRow.toList)
+
     table.update(0, bottomRow)
     for (row <- 1 until length) {
       table.update(row, new Array(length - row))
@@ -161,7 +166,6 @@ final class Grammar[Text, Result] private (private val inverted2Rules: Map[Len2R
                if lhs2.rhsRightMinPriority <= right.maxPriority
                if lhs2.rhsLeftMinPriority <= left.maxPriority;
                result = applyConstructor(lhs2, left, right))
-//               parseResult = ParseResult(lhs2.nonterminal, lhs2.maxPriority, result))
             yield result
 
         val results1 = apply1Rules(results2)

@@ -1,5 +1,8 @@
 package de.unruh.rendermath.latex
 
+import de.unruh.rendermath.{Error, Grammar, Math, Number, SymbolName}
+import de.unruh.rendermath.Grammar.{Priority, RhsElement, Rule, smallestPriority}
+import de.unruh.rendermath.SymbolName.rendermath.parseerror
 import de.unruh.rendermath.latex.Tokenizer.{Brace, Command, Token, Whitespace}
 
 import scala.collection.mutable.ListBuffer
@@ -25,8 +28,41 @@ object Parser {
     (remainingTokens, argTokens.result(), closingBrace)
   }
 
-  def parse(tokens: Seq[Token]) = {
-    ???
+  val mathNonterminal = RhsElement("MATH", smallestPriority)
+  def commandNonterminal(name: String) = RhsElement(s"CMD-$name", smallestPriority)
+  def characterNonterminal(name: String) = RhsElement(s"CHAR-$name", smallestPriority)
+  def expr(priority: Priority) = RhsElement("expr", priority)
+  val grammarRules : List[Rule[Math]] = List(
+    Rule("expr", 0, List(expr(0), characterNonterminal("+"), expr(1)), { case Seq(a,_,b) => a + b }),
+    Rule("expr", 1000, List(RhsElement("number", smallestPriority)), { case Seq(a) => a }),
+    Rule("number", 1000, List(characterNonterminal("0")), { _ => Number(0) }),
+    Rule("number", 1000, List(characterNonterminal("1")), { _ => Number(1) }),
+    Rule("number", 1000, List(characterNonterminal("2")), { _ => Number(2) })
+  )
+
+  val grammar: Grammar[Seq[MathToken], Math] = {
+    val empty = Grammar[Seq[MathToken], Math]().setTokenizer(_.map {
+      case LatexToken(token) => token match {
+        case Command(name, rawtext) => ???
+        case Whitespace(rawtext) => ???
+        case char: Tokenizer.Character => (s"CHAR-${char.character}", Error(parseerror, "raw character", char))
+      }
+      case token: ErrorToken => ("ERROR", Error(parseerror, token))
+      case GroupToken(opening, tokens, closing) =>
+        ??? // Should be evaluted already in parse, TODO
+    })
+    grammarRules.foldRight(empty) { (rule, grammar) => grammar.addRule(rule) }
+  }
+
+  def parse(tokens: Seq[Token]): Math = {
+    val evaluated = evaluateMacros(tokens)
+//    grammar.printGrammar()
+    val matches = grammar.matches(nonterminal = "expr", text = evaluated)
+    if (matches.isEmpty)
+      throw new RuntimeException(s"Could not parse formula $tokens")
+    if (matches.length > 1)
+      throw new RuntimeException(s"Could not parse formula $tokens, ${matches.length}x ambiguous")
+    matches.head
   }
 
   trait Macro {

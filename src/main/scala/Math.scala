@@ -33,10 +33,13 @@ object Math {
 
 final class Symbol private (val name:SymbolName, override val attributes: Map[SymbolName, Any]) extends Math {
   override def setAttributes(attributes: Map[SymbolName, Any]): Math = new Symbol(name, attributes)
+  override def toString: String = name.toString
 }
 
 /** cdname is of the form cd.name */
-class SymbolName(val cdname: String) extends AnyVal
+class SymbolName(val cdname: String) extends AnyVal {
+  override def toString: String = cdname
+}
 class AttributeName[A] private (private val cdname: String) extends AnyVal {
   def symbolName: SymbolName = new SymbolName(cdname)
 }
@@ -63,6 +66,7 @@ object SymbolName {
   //noinspection TypeAnnotation
   object rendermath {
     val parenthesis = a[Boolean]
+    val parseerror = s
   }
 }
 
@@ -76,7 +80,12 @@ object Symbol {
 
 final class Application private (val head:Math, val args:List[Math], override val attributes: Map[SymbolName, Any]) extends Math {
   override def setAttributes(attributes: Map[SymbolName, Any]): Math = new Application(head, args, attributes)
+  override def toString: String = head match {
+    case head : Symbol => s"$head(${args.mkString(", ")})"
+    case _ => s"($head)(${args.mkString(", ")})"
+  }
 }
+
 object Application {
   def apply(head:Math, args:Math*) : Application = new Application(head, args.toList, Map.empty)
   def apply(head:SymbolName, args:Math*) : Application = new Application(Symbol(head), args.toList, Map.empty)
@@ -94,6 +103,7 @@ object Application {
  * decimal fractions. We do not support any of these, explicit fractions and/or infinity or NaN symbols must be used for them. */
 final class Number private (val number: BigInt, override val attributes: Map[SymbolName, Any]) extends Math {
   override def setAttributes(attributes: Map[SymbolName, Any]): Math = new Number(number, attributes)
+  override def toString: String = number.toString
 }
 
 object Number {
@@ -115,6 +125,13 @@ object Variable {
     case variable: Variable => Some(variable.name)
     case _ => None
   }
+}
+
+final class Error private (val name: SymbolName, val args: List[Any], override val attributes: Map[SymbolName, Any]) extends Math {
+  override def setAttributes(attributes: Map[SymbolName, Any]): Math = new Error(name, args, attributes)
+}
+object Error {
+  def apply(name: SymbolName, args: Any*): Error = new Error(name, args.toList, Map.empty)
 }
 
 object Implicits {
