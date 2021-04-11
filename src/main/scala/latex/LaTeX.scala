@@ -13,15 +13,6 @@ object LaTeX {
   private val Parenthesis = Math.attributePattern(rendermath.parenthesis)
 
 
-  def tokenizeLatex(latex: String) = {
-
-  }
-
-  def parseLaTeX(latex: String): Math = {
-    ???
-  }
-
-
   /** Translates a [[Math]] to LaTeX.
    * Note that parentheses etc. are only inserted if corresponding annotations are provided in the formula. */
   def toLaTeX(math: Math): String = math match {
