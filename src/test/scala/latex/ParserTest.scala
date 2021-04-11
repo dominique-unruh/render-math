@@ -25,7 +25,12 @@ class ParserTest extends AnyFunSuite {
     assert(math.toString == "arith1.plus(1, 2)")
   }
 
-/*  test("parse \\frac") {
+  test("parse \\frac") {
     val text = "\\frac{1}{2}"
-  }*/
+    val tokens = tokenize(text)
+    println("TOKENS", tokens)
+    val math = Parser.parse(tokens)
+    println("MATH " + math)
+    assert(math.toString == "arith1.divide(1, 2)")
+  }
 }

@@ -1,12 +1,12 @@
 package de.unruh.rendermath
+package latex
 
-import de.unruh.rendermath.latex.LaTeX.{toAsciiArt, toLaTeX}
+import SymbolName.rendermath
+import latex.LaTeX.{toAsciiArt, toLaTeX}
 
 import org.scalatest.funsuite.AnyFunSuite
-import Implicits._
 
-import de.unruh.rendermath.SymbolName.rendermath
-import org.scilab.forge.jlatexmath.{Atom, FractionAtom, TeXFormula, TeXParser}
+import Implicits._
 
 class LaTeXTest extends AnyFunSuite {
   test ("render simple") {

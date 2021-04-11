@@ -1,10 +1,11 @@
 package de.unruh.rendermath.latex
 
 import de.unruh.rendermath.{Error, Grammar, Math, Number, SymbolName}
-import de.unruh.rendermath.Grammar.{Priority, RhsElement, Rule, smallestPriority}
+import de.unruh.rendermath.Grammar.{Priority, RhsElement, Rule, largestPriority, smallestPriority}
 import de.unruh.rendermath.SymbolName.rendermath.parseerror
 import de.unruh.rendermath.latex.Tokenizer.{Brace, Command, Token, Whitespace}
 
+import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
 object Parser {
@@ -28,11 +29,34 @@ object Parser {
     (remainingTokens, argTokens.result(), closingBrace)
   }
 
-  val mathNonterminal = RhsElement("MATH", smallestPriority)
-  def commandNonterminal(name: String) = RhsElement(s"CMD-$name", smallestPriority)
-  def characterNonterminal(name: String) = RhsElement(s"CHAR-$name", smallestPriority)
-  def expr(priority: Priority) = RhsElement("expr", priority)
+  @tailrec
+  def takeArgument(command: Command, tokens: List[Token]): (List[Token], Seq[Token]) = tokens match {
+    case Nil => throw new IllegalArgumentException(s"LaTeX macro \\$command reached end of string")
+    case (b : Brace) :: _ if !b.open => throw new IllegalArgumentException(s"LaTeX macro \\$command found }")
+    case (b : Brace) :: more if b.open =>
+      val (newTokens, arg, _) = scanGroup(more)
+      (newTokens, arg)
+    case (_ : Whitespace) :: rest => takeArgument(command, rest)
+    case token :: rest => (rest, Seq(token))
+  }
+
+  def takeArguments(command: Command, argnum: Int, tokens: List[Token]): (List[Token], List[Seq[Token]]) = {
+    var tokens2 = tokens
+    val args = ListBuffer[Seq[Token]]()
+    for (_ <- 1 to argnum) {
+      val (tokens3, arg) = takeArgument(command, tokens2)
+      tokens2 = tokens3
+      args += arg
+    }
+    (tokens2, args.result())
+  }
+
+  val mathNonterminal: RhsElement = RhsElement("MATH", smallestPriority)
+  def commandNonterminal(name: String): RhsElement = RhsElement(s"CMD-$name", smallestPriority)
+  def characterNonterminal(name: String): RhsElement = RhsElement(s"CHAR-$name", smallestPriority)
+  def expr(priority: Priority): RhsElement = RhsElement("expr", priority)
   val grammarRules : List[Rule[Math]] = List(
+    Rule("expr", largestPriority, List(mathNonterminal), { case Seq(a) => a }),
     Rule("expr", 0, List(expr(0), characterNonterminal("+"), expr(1)), { case Seq(a,_,b) => a + b }),
     Rule("expr", 1000, List(RhsElement("number", smallestPriority)), { case Seq(a) => a }),
     Rule("number", 1000, List(characterNonterminal("0")), { _ => Number(0) }),
@@ -40,8 +64,8 @@ object Parser {
     Rule("number", 1000, List(characterNonterminal("2")), { _ => Number(2) })
   )
 
-  val grammar: Grammar[Seq[MathToken], Math] = {
-    val empty = Grammar[Seq[MathToken], Math]().setTokenizer(_.map {
+  val grammar: Grammar[Seq[MathParserToken], Math] = {
+    val empty = Grammar[Seq[MathParserToken], Math]().setTokenizer(_.map {
       case LatexToken(token) => token match {
         case Command(name, rawtext) => ???
         case Whitespace(rawtext) => ???
@@ -50,6 +74,7 @@ object Parser {
       case token: ErrorToken => ("ERROR", Error(parseerror, token))
       case GroupToken(opening, tokens, closing) =>
         ??? // Should be evaluted already in parse, TODO
+      case MathToken(math) => ("MATH", math)
     })
     grammarRules.foldRight(empty) { (rule, grammar) => grammar.addRule(rule) }
   }
@@ -66,48 +91,46 @@ object Parser {
   }
 
   trait Macro {
-    def apply(command: Command, tokens: List[Token]): (List[Token], Seq[MathToken])
+    def apply(command: Command, tokens: List[Token]): (List[Token], Seq[MathParserToken])
   }
   case object Passthrough extends Macro {
-    override def apply(command: Command, tokens: List[Token]): (List[Token], Seq[MathToken]) = (tokens, Seq(LatexToken(command)))
+    override def apply(command: Command, tokens: List[Token]): (List[Token], Seq[MathParserToken]) = (tokens, Seq(LatexToken(command)))
   }
   /** Optional args etc not supported */
   abstract class SubstitutionMacro(argnum: Int) extends Macro {
-    def takeArgument(command: Command, tokens: List[Token]): (List[Token], Seq[Token]) = tokens match {
-      case Nil => throw new IllegalArgumentException(s"LaTeX macro \\$command reached end of string")
-      case (b : Brace) :: _ if !b.open => throw new IllegalArgumentException(s"LaTeX macro \\$command found }")
-      case (b : Brace) :: more if b.open =>
-        val (newTokens, arg, _) = scanGroup(more)
-        (newTokens, arg)
-      case (_ : Whitespace) :: rest => takeArgument(command, rest)
-      case token :: rest => (rest, Seq(token))
-    }
-    override def apply(command: Command, tokens: List[Token]): (List[Token], Seq[MathToken]) = {
-      var tokens2 = tokens
-      val args = ListBuffer[Seq[Token]]()
-      for (_ <- 1 to argnum) {
-        val (tokens3, arg) = takeArgument(command, tokens2)
-        tokens2 = tokens3
-        args += arg
-      }
-      val newTokens = evaluate(command, args.result()).toList
+    override def apply(command: Command, tokens: List[Token]): (List[Token], Seq[MathParserToken]) = {
+      val (tokens2, args) = takeArguments(command, argnum, tokens)
+      val newTokens = evaluate(command, args).toList
       (newTokens ++ tokens2, Nil)
     }
     def evaluate(command: Command, args: Seq[Seq[Token]]): Seq[Token]
   }
 
+  abstract class MathMacro(argnum: Int) extends Macro {
+    override def apply(command: Command, tokens: List[Token]): (List[Token], Seq[MathParserToken]) = {
+      val (tokens2, args) = takeArguments(command, argnum, tokens)
+      val args2 = args map { tokens => parse(tokens) }
+      val math = evaluate(command, args2)
+      (tokens2, Seq(MathToken(math)))
+    }
+    def evaluate(command: Command, args: Seq[Math]): Math
+  }
+
+
   val macros: Map[String, Macro] = Map[String, Macro](
   "pm" -> Passthrough,
-    "TESTduplicate" -> new SubstitutionMacro(1) { def evaluate(command: Command, args: Seq[Seq[Token]]): Seq[Token] = args.head ++ args.head }
+    "TESTduplicate" -> new SubstitutionMacro(1) { def evaluate(command: Command, args: Seq[Seq[Token]]): Seq[Token] = args.head ++ args.head },
+    "frac" -> new MathMacro(2) { def evaluate(command: Command, args: Seq[Math]): Math = args.head / args(1) },
   )
 
-  sealed trait MathToken
-  final case class LatexToken(token: Tokenizer.Token) extends MathToken
-  final case class ErrorToken(msg: String) extends MathToken
-  final case class GroupToken(opening: Brace, tokens: Seq[MathToken], closing: Brace) extends MathToken
+  sealed trait MathParserToken
+  final case class LatexToken(token: Tokenizer.Token) extends MathParserToken
+  final case class ErrorToken(msg: String) extends MathParserToken
+  final case class GroupToken(opening: Brace, tokens: Seq[MathParserToken], closing: Brace) extends MathParserToken
+  final case class MathToken(math: Math) extends MathParserToken
 
-  def evaluateMacros(tokens: Seq[Tokenizer.Token]): List[MathToken] = {
-    val result = ListBuffer[MathToken]()
+  def evaluateMacros(tokens: Seq[Tokenizer.Token]): List[MathParserToken] = {
+    val result = ListBuffer[MathParserToken]()
     var toks = tokens.toList
     while (toks.nonEmpty) {
       val token = toks.head
