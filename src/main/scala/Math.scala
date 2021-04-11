@@ -5,6 +5,9 @@ import SymbolName.arith1
 import scala.language.implicitConversions
 
 sealed trait Math {
+  def removeAttribute[A](name: AttributeName[A]): Math =
+    setAttributes(attributes.removed(name.symbolName))
+
   val attributes : Map[SymbolName, Any]
 
   def setAttributes(attributes: Map[SymbolName, Any]): Math
@@ -21,7 +24,7 @@ sealed trait Math {
 object Math {
   class AttributePattern[A](name: AttributeName[A]) {
     def unapply(math: Math): Option[(Any,Math)] = math.attributes.get(name.symbolName) match {
-      case Some(value : A) => Some((value, math))
+      case Some(value : A) => Some((value, math.removeAttribute(name)))
       case None => None
     }
   }

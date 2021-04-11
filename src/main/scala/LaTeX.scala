@@ -17,7 +17,7 @@ object LaTeX {
 
   def toLaTeX(math: Math): String = math match {
     case Parenthesis(value, math) => value match {
-      case false => s"\\left(${toLaTeX(math)}\\right)"
+      case true => s"\\left(${toLaTeX(math)}\\right)"
     }
     case Application(arith1.plus, args @ _*) => args.map(toLaTeX).mkString("+")
     case Application(arith1.times, args @ _*) => args.map(toLaTeX).mkString("*")

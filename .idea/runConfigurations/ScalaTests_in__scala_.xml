@@ -1,0 +1,24 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="ScalaTests in 'scala'" type="ScalaTestRunConfiguration" factoryName="ScalaTest" nameIsGenerated="true" show_console_on_std_err="false" show_console_on_std_out="false">
+    <module name="render-math" />
+    <option name="allowRunningInParallel" value="false" />
+    <option name="projectPathOnTarget" />
+    <option name="selectedOptions">
+      <list />
+    </option>
+    <option name="testKind" value="All in package" />
+    <option name="classBuf">
+      <list>
+        <option value="de.unruh.rendermath.LaTeXTest" />
+        <option value="de.unruh.rendermath.GrammarTest" />
+        <option value="de.unruh.rendermath.SymbolNameTest" />
+      </list>
+    </option>
+    <option name="shortenClasspath" value="NONE" />
+    <option name="testPackagePath" value="de.unruh.rendermath" />
+    <option name="workingDirectory" value="$PROJECT_DIR$" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
