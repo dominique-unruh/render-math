@@ -1,6 +1,6 @@
 package de.unruh.rendermath
 
-import Grammar.{Constructor, Len1Lhs, Len1Rhs, Len2Lhs, Len2Rhs, Nonterminal, ParseResult, ParseResultNormal, ParseResultSynthetic, Priority, RhsElement, Rule, largestPriority, smallestPriority, syntheticPriority, uniqueNumber}
+import Grammar.{Len1Lhs, Len1Rhs, Len2Lhs, Len2Rhs, Nonterminal, ParseResult, ParseResultNormal, ParseResultSynthetic, Priority, RhsElement, Rule, largestPriority, priorityString, smallestPriority, syntheticPriority, uniqueNumber}
 import Utils.updatedWithDefault
 
 import org.jetbrains.annotations.Nullable
@@ -8,16 +8,15 @@ import org.jetbrains.annotations.Nullable
 object Grammar {
   type Nonterminal = String
   type Priority = Int
-//  type TreeTag = String
 
-  sealed trait ParseResult[+Result] {
+  private sealed trait ParseResult[+Result] {
     val nonterminal: Nonterminal
     val maxPriority: Priority
   }
-  final case class ParseResultNormal[+Result](override val nonterminal: Nonterminal, override val maxPriority: Priority, result: Result) extends ParseResult[Result] {
+  private final case class ParseResultNormal[+Result](override val nonterminal: Nonterminal, override val maxPriority: Priority, result: Result) extends ParseResult[Result] {
     override def toString: String = s"$nonterminal[$maxPriority]=$result"
   }
-  final case class ParseResultSynthetic[+Result](override val nonterminal: Nonterminal, override val maxPriority: Priority, result: List[Result]) extends ParseResult[Result] {
+  private final case class ParseResultSynthetic[+Result](override val nonterminal: Nonterminal, override val maxPriority: Priority, result: List[Result]) extends ParseResult[Result] {
     override def toString: String = s"$nonterminal[$maxPriority]=$result"
   }
 
@@ -31,35 +30,23 @@ object Grammar {
   }
 
   private var counter = 0
-  def uniqueNumber(): Int = { counter += 1; counter }
+  private def uniqueNumber(): Int = { counter += 1; counter }
 
-  def priorityString(priority: Priority): String =
+  private def priorityString(priority: Priority): String =
     if (priority == smallestPriority) "*"
     else if (priority == syntheticPriority) "@"
     else priority.toString
 
-
-  final case class Len2Rhs(leftNonterminal: Nonterminal,
+  private final case class Len2Rhs(leftNonterminal: Nonterminal,
                            rightNonterminal: Nonterminal)
-  final case class Len1Rhs(nonterminal: Nonterminal)
-
-//  sealed trait DemoTree
-//  final case class Leaf(name: TreeTag) extends DemoTree {
-//    override def toString: String = name
-//  }
-//  final case class Branch(name: TreeTag, left: DemoTree, right: DemoTree) extends DemoTree {
-//    override def toString: String = s"$name($left,$right)"
-//  }
-//  final case class Branch1(name: TreeTag, child: DemoTree) extends DemoTree {
-//    override def toString: String = s"$name($child)"
-//  }
+  private final case class Len1Rhs(nonterminal: Nonterminal)
 
   type Constructor[Result] = Seq[Result] => Result
 
-  final case class Len2Lhs[Result](rhsLeftMinPriority: Priority, rhsRightMinPriority: Priority,
+  private final case class Len2Lhs[Result](rhsLeftMinPriority: Priority, rhsRightMinPriority: Priority,
                                    nonterminal: Nonterminal, maxPriority: Priority,
                                    @Nullable constructor: Constructor[Result])
-  final case class Len1Lhs[Result](rhsMinPriority: Priority, nonterminal: Nonterminal, maxPriority: Priority,
+  private final case class Len1Lhs[Result](rhsMinPriority: Priority, nonterminal: Nonterminal, maxPriority: Priority,
                                    @Nullable constructor: Constructor[Result])
 
   def apply[Text, Result]() : Grammar[Text, Result] =
@@ -68,19 +55,24 @@ object Grammar {
 
   val smallestPriority: Priority = Int.MinValue
   val largestPriority: Priority = Int.MaxValue
-  val syntheticPriority: Priority = 1212121212
+  private val syntheticPriority: Priority = 1212121212
 }
 
 
-final case class Grammar[Text, Result] private (private val inverted2Rules: Map[Len2Rhs, List[Len2Lhs[Result]]],
-                                                private val inverted1Rules: Map[Len1Rhs, List[Len1Lhs[Result]]],
-                                                private val tokenizer: Text => Seq[ParseResult[Result]]) {
+final class Grammar[Text, Result] private (private val inverted2Rules: Map[Len2Rhs, List[Len2Lhs[Result]]],
+                                           private val inverted1Rules: Map[Len1Rhs, List[Len1Lhs[Result]]],
+                                           private val tokenizer: Text => Seq[ParseResult[Result]]) {
   private type ParseResult = Grammar.ParseResult[Result]
   private type ParseResultNormal = Grammar.ParseResultNormal[Result]
   private type ParseResultSynthetic = Grammar.ParseResultSynthetic[Result]
   private type Len2Lhs = Grammar.Len2Lhs[Result]
   private type Len1Lhs = Grammar.Len1Lhs[Result]
   type Rule = Grammar.Rule[Result]
+
+  private def copy(inverted2Rules: Map[Len2Rhs, List[Len2Lhs]] = inverted2Rules,
+                   inverted1Rules: Map[Len1Rhs, List[Len1Lhs]] = inverted1Rules,
+                   tokenizer: Text => Seq[ParseResult] = tokenizer) =
+    new Grammar[Text,Result](inverted2Rules, inverted1Rules, tokenizer)
 
   def setTokenizer(tokenizer: Text => Seq[(Nonterminal, Result)]): Grammar[Text, Result] =
     copy(tokenizer = { text => tokenizer(text) map { case (nt, tag) =>
@@ -139,7 +131,6 @@ final case class Grammar[Text, Result] private (private val inverted2Rules: Map[
              if lhs.rhsMinPriority <= resultToAdd.maxPriority) {
           val newResult = ParseResultNormal(lhs.nonterminal, lhs.maxPriority,
             lhs.constructor(Seq(resultToAdd.asInstanceOf[ParseResultNormal].result)))
-          println(s"newResult=$newResult")
           results2ToAdd = newResult :: results2ToAdd
         }
       }
@@ -155,29 +146,25 @@ final case class Grammar[Text, Result] private (private val inverted2Rules: Map[
     for (row <- 1 until length) {
       table.update(row, new Array(length - row))
       for (col <- 0 until length - row) {
-        println(s"Row=$row, col=$col (text $col .. ${row+col})")
+//        println(s"Row=$row, col=$col (text $col .. ${row+col})")
         // Result from applying len2 rules
         val results2 =
           for (i <- 0 until row;
-               _ = println(s"i=$i");
+//               _ = println(s"i=$i");
                left <- table(i)(col);
                right <- table(row-i-1)(col+i+1);
-               _ = println(s"left=$left, right=$right");
+//               _ = println(s"left=$left, right=$right");
                rhs2 = Len2Rhs(left.nonterminal, right.nonterminal);
-               _ = println(s"rhs2=$rhs2");
+//               _ = println(s"rhs2=$rhs2");
                lhs2 <- inverted2Rules.getOrElse(rhs2, Nil);
-               _ = println(s"lhs2=$lhs2")
+//               _ = println(s"lhs2=$lhs2")
                if lhs2.rhsRightMinPriority <= right.maxPriority
                if lhs2.rhsLeftMinPriority <= left.maxPriority;
                result = applyConstructor(lhs2, left, right))
 //               parseResult = ParseResult(lhs2.nonterminal, lhs2.maxPriority, result))
             yield result
 
-        println(s"Results2=$results2")
-
         val results1 = apply1Rules(results2)
-
-        println(s"results1=$results1")
         table(row).update(col, results1)
         }
       }
@@ -191,8 +178,8 @@ final case class Grammar[Text, Result] private (private val inverted2Rules: Map[
   private def applyConstructor(lhs2: Len2Lhs, left: ParseResult, right: ParseResult): ParseResult = {
     val leftResult = left.asInstanceOf[ParseResultNormal].result
     val constructorArgs = right match {
-      case Grammar.ParseResultNormal(nonterminal, maxPriority, result) => List(leftResult, result)
-      case Grammar.ParseResultSynthetic(nonterminal, maxPriority, result) => leftResult :: result
+      case Grammar.ParseResultNormal(_, _, result) => List(leftResult, result)
+      case Grammar.ParseResultSynthetic(_, _, result) => leftResult :: result
     }
 
     lhs2.constructor match {
@@ -205,11 +192,13 @@ final case class Grammar[Text, Result] private (private val inverted2Rules: Map[
     println("Len 1 rules:")
     for ((rhs, lhss) <- inverted1Rules;
          lhs <- lhss)
-      println(s"  $lhs -> $rhs")
-    println("Len 2 rules:")
+      println(s"  ${lhs.nonterminal}[${priorityString(lhs.maxPriority)}] -> ${rhs.nonterminal}[${priorityString(lhs.rhsMinPriority)}]")
+      println("Len 2 rules:")
     for ((rhs, lhss) <- inverted2Rules;
          lhs <- lhss)
-      println(s"  $lhs -> $rhs")
+      println(s"  ${lhs.nonterminal}[${priorityString(lhs.maxPriority)}] -> " +
+        s"${rhs.leftNonterminal}[${priorityString(lhs.rhsLeftMinPriority)}] " +
+        s"${rhs.rightNonterminal}[${priorityString(lhs.rhsRightMinPriority)}]")
   }
 }
 
