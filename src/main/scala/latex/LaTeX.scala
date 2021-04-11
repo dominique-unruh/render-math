@@ -1,32 +1,41 @@
 package de.unruh.rendermath
+package latex
 
 import SymbolName.{arith1, rendermath}
 
-import de.unruh.rendermath.Grammar.{Nonterminal, Priority}
-import de.unruh.rendermath.Utils.updatedWithDefault
 import org.scilab.forge.jlatexmath.{TeXConstants, TeXFormula}
 
+import java.awt.Color
 import java.awt.image.BufferedImage
-import java.awt.{Color, Image}
 import scala.collection.mutable.ListBuffer
-
 
 object LaTeX {
   private val Parenthesis = Math.attributePattern(rendermath.parenthesis)
 
 
+  def tokenizeLatex(latex: String) = {
+
+  }
+
+  def parseLaTeX(latex: String): Math = {
+    ???
+  }
+
+
+  /** Translates a [[Math]] to LaTeX.
+   * Note that parentheses etc. are only inserted if corresponding annotations are provided in the formula. */
   def toLaTeX(math: Math): String = math match {
     case Parenthesis(value, math) => value match {
       case true => s"\\left(${toLaTeX(math)}\\right)"
     }
-    case Application(arith1.plus, args @ _*) => args.map(toLaTeX).mkString("+")
-    case Application(arith1.times, args @ _*) => args.map(toLaTeX).mkString("*")
+    case Application(arith1.plus, args@_*) => args.map(toLaTeX).mkString("+")
+    case Application(arith1.times, args@_*) => args.map(toLaTeX).mkString("*")
     case Application(arith1.divide, arg1, arg2) =>
       s"\\frac{${toLaTeX(arg1)}}{${toLaTeX(arg2)}}"
     case Symbol(name) =>
-      throw new IllegalArgumentException("Don't know how to render symbol "+name)
-    case Application(head, _ @ _*) =>
-      throw new IllegalArgumentException("Don't know how to render applications with head "+head)
+      throw new IllegalArgumentException("Don't know how to render symbol " + name)
+    case Application(head, _@_*) =>
+      throw new IllegalArgumentException("Don't know how to render applications with head " + head)
     case Number(number) => number.toString
     case Variable(name) => name
   }

@@ -1,6 +1,6 @@
 package de.unruh.rendermath
 
-import LaTeX.{toAsciiArt, toLaTeX}
+import de.unruh.rendermath.latex.LaTeX.{toAsciiArt, toLaTeX}
 
 import org.scalatest.funsuite.AnyFunSuite
 import Implicits._

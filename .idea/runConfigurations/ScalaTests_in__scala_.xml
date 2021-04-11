@@ -12,6 +12,7 @@
         <option value="de.unruh.rendermath.LaTeXTest" />
         <option value="de.unruh.rendermath.GrammarTest" />
         <option value="de.unruh.rendermath.SymbolNameTest" />
+        <option value="de.unruh.rendermath.latex.TokenizerTest" />
       </list>
     </option>
     <option name="shortenClasspath" value="NONE" />
