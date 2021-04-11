@@ -10,3 +10,4 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % "test"
 libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.2.5"
 // https://mvnrepository.com/artifact/org.scilab.forge/jlatexmath
 libraryDependencies += "org.scilab.forge" % "jlatexmath" % "1.0.7"
+libraryDependencies += "org.jetbrains" % "annotations" % "20.1.0"

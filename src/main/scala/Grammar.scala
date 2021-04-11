@@ -1,19 +1,33 @@
 package de.unruh.rendermath
 
-import Grammar.{Branch, Branch1, DemoTree, Leaf, Len1Lhs, Len1Rhs, Len2Lhs, Len2Rhs, Nonterminal, ParseResult, Priority, Text, TreeTag, largestPriority, smallestPriority, syntheticPriority, uniqueNumber}
+import Grammar.{Constructor, Len1Lhs, Len1Rhs, Len2Lhs, Len2Rhs, Nonterminal, ParseResult, ParseResultNormal, ParseResultSynthetic, Priority, RhsElement, Rule, largestPriority, smallestPriority, syntheticPriority, uniqueNumber}
 import Utils.updatedWithDefault
 
+import org.jetbrains.annotations.Nullable
+
 object Grammar {
-  type Terminal = String
   type Nonterminal = String
   type Priority = Int
-  type TreeTag = String
-  type Text = String
+//  type TreeTag = String
 
-  type NonterminalIdx = Int
+  sealed trait ParseResult[+Result] {
+    val nonterminal: Nonterminal
+    val maxPriority: Priority
+  }
+  final case class ParseResultNormal[+Result](override val nonterminal: Nonterminal, override val maxPriority: Priority, result: Result) extends ParseResult[Result] {
+    override def toString: String = s"$nonterminal[$maxPriority]=$result"
+  }
+  final case class ParseResultSynthetic[+Result](override val nonterminal: Nonterminal, override val maxPriority: Priority, result: List[Result]) extends ParseResult[Result] {
+    override def toString: String = s"$nonterminal[$maxPriority]=$result"
+  }
 
-  final case class ParseResult(nonterminal: Nonterminal, maxPriority: Priority, result: DemoTree) {
-    override def toString: Terminal = s"$nonterminal[$maxPriority]=$result"
+  case class Rule[Result](nonterminal: Nonterminal, maxPriority: Int, pieces: List[RhsElement],
+                          constructor: Constructor[Result]) {
+    override def toString: Nonterminal = s"$nonterminal[$maxPriority] -> ${pieces.mkString(" ")}"
+  }
+
+  final case class RhsElement(nonterminal: Nonterminal, minPriority: Priority) {
+    override def toString: Nonterminal = s"$nonterminal[$minPriority]"
   }
 
   private var counter = 0
@@ -25,35 +39,32 @@ object Grammar {
     else priority.toString
 
 
-  final case class Len2Rhs(leftNonterminal: Nonterminal/*, leftMinPriority: Priority*/,
-                           rightNonterminal: Nonterminal/*, rightMinPriority: Priority*/) {
-//    override def toString: String = s"$leftNonterminal[${priorityString(leftMinPriority)}] $rightNonterminal[${priorityString(rightMinPriority)}]"
-  }
-  final case class Len1Rhs(nonterminal: Nonterminal/*, minPriority: Priority*/) {
-//    override def toString: String = s"$nonterminal[${priorityString(minPriority)}]"
-  }
+  final case class Len2Rhs(leftNonterminal: Nonterminal,
+                           rightNonterminal: Nonterminal)
+  final case class Len1Rhs(nonterminal: Nonterminal)
 
-  sealed trait DemoTree
-  final case class Leaf(name: TreeTag) extends DemoTree {
-    override def toString: Terminal = name
-  }
-  final case class Branch(name: TreeTag, left: DemoTree, right: DemoTree) extends DemoTree {
-    override def toString: Terminal = s"$name($left,$right)"
-  }
-  final case class Branch1(name: TreeTag, child: DemoTree) extends DemoTree {
-    override def toString: Terminal = s"$name($child)"
-  }
+//  sealed trait DemoTree
+//  final case class Leaf(name: TreeTag) extends DemoTree {
+//    override def toString: String = name
+//  }
+//  final case class Branch(name: TreeTag, left: DemoTree, right: DemoTree) extends DemoTree {
+//    override def toString: String = s"$name($left,$right)"
+//  }
+//  final case class Branch1(name: TreeTag, child: DemoTree) extends DemoTree {
+//    override def toString: String = s"$name($child)"
+//  }
 
-  final case class Len2Lhs(rhsLeftMinPriority: Priority, rhsRightMinPriority: Priority,
-                           nonterminal: Nonterminal, maxPriority: Priority, treeTag: String) {
-//    override def toString: String = s"$nonterminal[${priorityString(maxPriority)}] /*$treeTag*/"
-  }
-  final case class Len1Lhs(rhsMinPriority: Priority, nonterminal: Nonterminal, maxPriority: Priority, treeTag: String) {
-//    override def toString: String = s"$nonterminal[${priorityString(maxPriority)}] /*$treeTag*/"
-  }
+  type Constructor[Result] = Seq[Result] => Result
 
-  val empty = new Grammar(Map.empty, Map.empty,
-    { _ => throw new UnsupportedOperationException("No tokenizer configured") })
+  final case class Len2Lhs[Result](rhsLeftMinPriority: Priority, rhsRightMinPriority: Priority,
+                                   nonterminal: Nonterminal, maxPriority: Priority,
+                                   @Nullable constructor: Constructor[Result])
+  final case class Len1Lhs[Result](rhsMinPriority: Priority, nonterminal: Nonterminal, maxPriority: Priority,
+                                   @Nullable constructor: Constructor[Result])
+
+  def apply[Text, Result]() : Grammar[Text, Result] =
+    new Grammar(Map.empty, Map.empty,
+      { _ => throw new UnsupportedOperationException("No tokenizer configured") })
 
   val smallestPriority: Priority = Int.MinValue
   val largestPriority: Priority = Int.MaxValue
@@ -61,22 +72,31 @@ object Grammar {
 }
 
 
-final case class Grammar private (private val inverted2Rules: Map[Len2Rhs, List[Len2Lhs]],
-                                  private val inverted1Rules: Map[Len1Rhs, List[Len1Lhs]],
-                                  private val tokenizer: Text => Seq[ParseResult]) {
-  def setTokenizer(tokenizer: Text => Seq[(Nonterminal, TreeTag)]): Grammar =
-    copy(tokenizer = { text => tokenizer(text) map { case (nt, tag) => ParseResult(nt, largestPriority, Leaf(tag)) } })
+final case class Grammar[Text, Result] private (private val inverted2Rules: Map[Len2Rhs, List[Len2Lhs[Result]]],
+                                                private val inverted1Rules: Map[Len1Rhs, List[Len1Lhs[Result]]],
+                                                private val tokenizer: Text => Seq[ParseResult[Result]]) {
+  private type ParseResult = Grammar.ParseResult[Result]
+  private type ParseResultNormal = Grammar.ParseResultNormal[Result]
+  private type ParseResultSynthetic = Grammar.ParseResultSynthetic[Result]
+  private type Len2Lhs = Grammar.Len2Lhs[Result]
+  private type Len1Lhs = Grammar.Len1Lhs[Result]
+  type Rule = Grammar.Rule[Result]
 
-  def addRule(rule: Rule): Grammar = rule match {
-    case Rule(nonterminal, maxPriority, Seq(singleRhs), treeTag) =>
+  def setTokenizer(tokenizer: Text => Seq[(Nonterminal, Result)]): Grammar[Text, Result] =
+    copy(tokenizer = { text => tokenizer(text) map { case (nt, tag) =>
+      ParseResultNormal(nt, largestPriority, tag) } })
+
+  def addRule(rule: Rule): Grammar[Text, Result] = rule match {
+    case Rule(nonterminal, maxPriority, Seq(singleRhs), constructor) =>
       val rhs = Len1Rhs(nonterminal = singleRhs.nonterminal)
-      val lhs = Len1Lhs(nonterminal = nonterminal, maxPriority = maxPriority, treeTag = treeTag,
+      val lhs = Len1Lhs(nonterminal = nonterminal, maxPriority = maxPriority,
+        constructor = constructor,
         rhsMinPriority = singleRhs.minPriority)
       this.copy(inverted1Rules = updatedWithDefault(inverted1Rules, Nil, rhs) { lhs :: _ })
-    case Rule(nonterminal, maxPriority, Seq(), treeTag) =>
-      ???
-    case Rule(nonterminal, maxPriority, rhs, treeTag) =>
-      var grammar: Grammar = this
+    case Rule(_, _, Seq(), _) =>
+      throw new UnsupportedOperationException("Empty production rules are not supported")
+    case Rule(nonterminal, maxPriority, rhs, constructor) =>
+      var grammar: Grammar[Text, Result] = this
       val rhsTailRev = rhs.tail.reverse
       var rhsEnd = rhsTailRev.head
       for (rhsElem <- rhsTailRev.tail) {
@@ -84,9 +104,9 @@ final case class Grammar private (private val inverted2Rules: Map[Len2Rhs, List[
           rightNonterminal = rhsEnd.nonterminal)
         // TODO reuse existing ones
         // TODO: Use compact name (or different type for synthetic nonterminals)
-        val lhs2 = Len2Lhs(
+        val lhs2 : Len2Lhs = Len2Lhs(
           rhsLeftMinPriority = rhsElem.minPriority, rhsRightMinPriority = rhsEnd.minPriority,
-          nonterminal=s"#${uniqueNumber()}", maxPriority=syntheticPriority, treeTag="SYNTHETIC")
+          nonterminal=s"#${uniqueNumber()}", maxPriority=syntheticPriority, constructor = null)
         rhsEnd = RhsElement(lhs2.nonterminal, lhs2.maxPriority)
         grammar = grammar.copy(inverted2Rules =
           updatedWithDefault(grammar.inverted2Rules, Nil, rhs2) { lhs2 :: _ })
@@ -95,18 +115,18 @@ final case class Grammar private (private val inverted2Rules: Map[Len2Rhs, List[
       val rhsHead = rhs.head
       val rhs2 = Len2Rhs(leftNonterminal = rhsHead.nonterminal,
         rightNonterminal = rhsEnd.nonterminal)
-      val lhs2 = Len2Lhs(nonterminal = nonterminal, maxPriority = maxPriority, treeTag = treeTag,
+      val lhs2 = Len2Lhs(nonterminal = nonterminal, maxPriority = maxPriority, constructor = constructor,
         rhsLeftMinPriority = rhsHead.minPriority, rhsRightMinPriority = rhsEnd.minPriority)
       grammar.copy(inverted2Rules =
         updatedWithDefault(grammar.inverted2Rules, Nil, rhs2) { lhs2 :: _ })
   }
 
-  def matches(nonterminal: Nonterminal, minPriority: Priority = smallestPriority, text: Text) = {
+  def matches(nonterminal: Nonterminal, minPriority: Priority = smallestPriority, text: Text): List[Result] = {
     matchesNonterminalList(nonterminal, minPriority, tokenizer(text))
   }
 
   def matchesNonterminalList(nonterminal: Nonterminal, minPriority: Priority = smallestPriority,
-                             text: Seq[ParseResult]): List[DemoTree] = {
+                             text: Seq[ParseResult]): List[Result] = {
     def apply1Rules(results: Seq[ParseResult]): List[ParseResult] = {
       // Apply len1 rules
       var results1 : List[ParseResult] = Nil
@@ -115,9 +135,10 @@ final case class Grammar private (private val inverted2Rules: Map[Len2Rhs, List[
         val resultToAdd = results2ToAdd.head
         results2ToAdd = results2ToAdd.tail
         results1 = resultToAdd :: results1
-        for (lhs <- inverted1Rules.getOrElse(Len1Rhs(resultToAdd.nonterminal), Nil);
+        for (lhs <- inverted1Rules.getOrElse(Len1Rhs(resultToAdd.nonterminal), Nil)
              if lhs.rhsMinPriority <= resultToAdd.maxPriority) {
-          val newResult = ParseResult(lhs.nonterminal, lhs.maxPriority, Branch1(lhs.treeTag, resultToAdd.result))
+          val newResult = ParseResultNormal(lhs.nonterminal, lhs.maxPriority,
+            lhs.constructor(Seq(resultToAdd.asInstanceOf[ParseResultNormal].result)))
           println(s"newResult=$newResult")
           results2ToAdd = newResult :: results2ToAdd
         }
@@ -145,12 +166,12 @@ final case class Grammar private (private val inverted2Rules: Map[Len2Rhs, List[
                rhs2 = Len2Rhs(left.nonterminal, right.nonterminal);
                _ = println(s"rhs2=$rhs2");
                lhs2 <- inverted2Rules.getOrElse(rhs2, Nil);
-               _ = println(s"lhs2=$lhs2");
-               if lhs2.rhsRightMinPriority <= right.maxPriority;
+               _ = println(s"lhs2=$lhs2")
+               if lhs2.rhsRightMinPriority <= right.maxPriority
                if lhs2.rhsLeftMinPriority <= left.maxPriority;
-               result = Branch(lhs2.treeTag, left.result, right.result);
-               parseResult = ParseResult(lhs2.nonterminal, lhs2.maxPriority, result))
-            yield parseResult
+               result = applyConstructor(lhs2, left, right))
+//               parseResult = ParseResult(lhs2.nonterminal, lhs2.maxPriority, result))
+            yield result
 
         println(s"Results2=$results2")
 
@@ -161,9 +182,24 @@ final case class Grammar private (private val inverted2Rules: Map[Len2Rhs, List[
         }
       }
     val finalResults = table(length-1)(0)
-    finalResults.withFilter(_.maxPriority >= minPriority).map(_.result).toList
+
+    finalResults.toList collect {
+      case ParseResultNormal(`nonterminal`, maxPriority, result) if maxPriority >= minPriority => result
+    }
+  }
+
+  private def applyConstructor(lhs2: Len2Lhs, left: ParseResult, right: ParseResult): ParseResult = {
+    val leftResult = left.asInstanceOf[ParseResultNormal].result
+    val constructorArgs = right match {
+      case Grammar.ParseResultNormal(nonterminal, maxPriority, result) => List(leftResult, result)
+      case Grammar.ParseResultSynthetic(nonterminal, maxPriority, result) => leftResult :: result
     }
 
+    lhs2.constructor match {
+      case null => ParseResultSynthetic(lhs2.nonterminal, lhs2.maxPriority, constructorArgs)
+      case constructor => ParseResultNormal(lhs2.nonterminal, lhs2.maxPriority, constructor(constructorArgs))
+    }
+  }
 
   def printGrammar(): Unit = {
     println("Len 1 rules:")
@@ -182,11 +218,4 @@ object Utils {
     map.updatedWith(key) { case None => Some(f(default)); case Some(value) => Some(f(value)) }
 }
 
-case class Rule(nonterminal: Nonterminal, maxPriority: Int, pieces: List[RhsElement], treeTag: TreeTag) {
-  override def toString: Nonterminal = s"$nonterminal[$maxPriority] -> ${pieces.mkString(" ")}"
-}
-
-final case class RhsElement(nonterminal: Nonterminal, minPriority: Priority) {
-  override def toString: Nonterminal = s"$nonterminal[$minPriority]"
-}
 

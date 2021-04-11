@@ -2,7 +2,7 @@ package de.unruh.rendermath
 
 import SymbolName.{arith1, rendermath}
 
-import de.unruh.rendermath.Grammar.{Constructor, Nonterminal, Priority, Result, Terminal}
+import de.unruh.rendermath.Grammar.{Nonterminal, Priority}
 import de.unruh.rendermath.Utils.updatedWithDefault
 import org.scilab.forge.jlatexmath.{TeXConstants, TeXFormula}
 
