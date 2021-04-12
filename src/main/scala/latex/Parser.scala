@@ -58,6 +58,7 @@ object Parser {
   val grammarRules : List[Rule[Math]] = List(
     Rule("expr", largestPriority, List(mathNonterminal), { case Seq(a) => a }),
     Rule("expr", 0, List(expr(0), characterNonterminal("+"), expr(1)), { case Seq(a,_,b) => a + b }),
+    Rule("expr", 2, List(expr(3), characterNonterminal("*"), expr(2)), { case Seq(a,_,b) => a * b }),
     Rule("expr", 1000, List(RhsElement("number", smallestPriority)), { case Seq(a) => a }),
     Rule("number", 1000, List(characterNonterminal("0")), { _ => Number(0) }),
     Rule("number", 1000, List(characterNonterminal("1")), { _ => Number(1) }),
@@ -81,6 +82,11 @@ object Parser {
 
   def parse(tokens: Seq[Token]): Math = {
     val evaluated = evaluateMacros(tokens)
+    parseMathParserTokens(evaluated)
+  }
+
+  def parseMathParserTokens(tokens: Seq[MathParserToken]): Math = {
+    val evaluated = evaluateGroups(tokens)
 //    grammar.printGrammar()
     val matches = grammar.matches(nonterminal = "expr", text = evaluated)
     if (matches.isEmpty)
@@ -129,6 +135,11 @@ object Parser {
   final case class GroupToken(opening: Brace, tokens: Seq[MathParserToken], closing: Brace) extends MathParserToken
   final case class MathToken(math: Math) extends MathParserToken
 
+  def evaluateGroups(tokens: Seq[MathParserToken]): Seq[MathParserToken] = tokens map {
+    case GroupToken(opening, tokens, closing) => MathToken(parseMathParserTokens(tokens))
+    case token => token
+  }
+
   def evaluateMacros(tokens: Seq[Tokenizer.Token]): List[MathParserToken] = {
     val result = ListBuffer[MathParserToken]()
     var toks = tokens.toList
@@ -154,5 +165,4 @@ object Parser {
     }
     result.result()
   }
-
 }

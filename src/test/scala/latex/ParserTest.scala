@@ -16,21 +16,27 @@ class ParserTest extends AnyFunSuite {
       println(m)
   }
 
+  def testParse(text: String, expected: String) = {
+      val tokens = tokenize(text)
+      println("TOKENS", tokens)
+      val math = Parser.parse(tokens)
+      println("MATH " + math)
+      assert(math.toString == expected)
+  }
+
   test("parse 1+2") {
-    val text = "1+2"
-    val tokens = tokenize(text)
-    println("TOKENS", tokens)
-    val math = Parser.parse(tokens)
-    println("MATH " + math)
-    assert(math.toString == "arith1.plus(1, 2)")
+    testParse("1+2", "arith1.plus(1, 2)")
   }
 
   test("parse \\frac") {
-    val text = "\\frac{1}{2}"
-    val tokens = tokenize(text)
-    println("TOKENS", tokens)
-    val math = Parser.parse(tokens)
-    println("MATH " + math)
-    assert(math.toString == "arith1.divide(1, 2)")
+    testParse("\\frac{1}{2}", "arith1.divide(1, 2)")
+  }
+
+  test("parse {}") {
+    testParse("0*{1+2}", "arith1.times(0, arith1.plus(1, 2))")
+  }
+
+  test("parse priority") {
+    testParse("0+1*2", "arith1.plus(0, arith1.times(1, 2))")
   }
 }
