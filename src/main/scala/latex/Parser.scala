@@ -1,12 +1,14 @@
 package de.unruh.rendermath.latex
 
 import de.unruh.rendermath.{Error, Grammar, Math, Number, SymbolName}
-import de.unruh.rendermath.Grammar.{Priority, RhsElement, Rule, largestPriority, smallestPriority}
+import de.unruh.rendermath.Grammar.{Constructor, Priority, RhsElement, Rule, largestPriority, smallestPriority}
 import de.unruh.rendermath.SymbolName.rendermath.parseerror
 import de.unruh.rendermath.latex.Tokenizer.{Brace, Command, Token, Whitespace}
 
+import java.util.regex.Pattern
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
+import scala.util.matching.Regex
 
 object Parser {
   def scanGroup(tokens: List[Token]) : (List[Token], List[Token], Brace) = {
@@ -51,19 +53,47 @@ object Parser {
     (tokens2, args.result())
   }
 
-  val mathNonterminal: RhsElement = RhsElement("MATH", smallestPriority)
+//  val mathNonterminal: RhsElement = RhsElement("MATH", smallestPriority)
   def commandNonterminal(name: String): RhsElement = RhsElement(s"CMD-$name", smallestPriority)
   def characterNonterminal(name: String): RhsElement = RhsElement(s"CHAR-$name", smallestPriority)
   def expr(priority: Priority): RhsElement = RhsElement("expr", priority)
-  val grammarRules : List[Rule[Math]] = List(
-    Rule("expr", largestPriority, List(mathNonterminal), { case Seq(a) => a }),
-    Rule("expr", 0, List(expr(0), characterNonterminal("+"), expr(1)), { case Seq(a,_,b) => a + b }),
-    Rule("expr", 2, List(expr(3), characterNonterminal("*"), expr(2)), { case Seq(a,_,b) => a * b }),
-    Rule("expr", 1000, List(RhsElement("number", smallestPriority)), { case Seq(a) => a }),
-    Rule("number", 1000, List(characterNonterminal("0")), { _ => Number(0) }),
-    Rule("number", 1000, List(characterNonterminal("1")), { _ => Number(1) }),
-    Rule("number", 1000, List(characterNonterminal("2")), { _ => Number(2) })
-  )
+
+  val parseRuleRegex: Regex = raw"""([a-zA-Z][a-zA-Z_0-9]+?|.)(\.-?[0-9]+)?""".r
+
+  def parseRule(rule: String, constructor: Constructor[Math]): Rule[Math] = {
+    def parseNonterminal(nonterminal: String, defaultPriority: Priority): RhsElement = {
+      nonterminal match {
+        case parseRuleRegex(name, priority) =>
+          val priority2 = if (priority!=null) priority.tail.toInt else defaultPriority
+          val name2 =
+            if (name.length == 1) s"CHAR-$name"
+            else if (name.head == '\\') s"CMD-${name.tail}"
+            else name
+          RhsElement(name2, priority2)
+      }
+    }
+    val parts = rule.split(' ').filter(_.nonEmpty)
+    if (parts.length < 3)
+      throw new IllegalArgumentException(s"Rule must have format 'nonterminal ::= nonterminal nonterminal ...' (too short): $rule")
+    val Seq(head, assign, rhs @ _*) = parts.toSeq
+    if (!Seq("::=", ":=", "->").contains(assign))
+      throw new IllegalArgumentException(s"Rule must have format 'nonterminal ::= nonterminal nonterminal ...' (wrong symbol $assign): $rule")
+    val headElem = parseNonterminal(head, largestPriority)
+    val rhsElems = rhs.map(parseNonterminal(_,smallestPriority))
+    Rule(headElem.nonterminal, headElem.minPriority, rhsElems.toList, constructor)
+  }
+
+  val grammarRules: Seq[Rule[Math]] = List[(String, Constructor[Math])] (
+    "expr ::= MATH" -> { case Seq(a) => a },
+    "expr.0 ::= expr.1 + expr.0" -> { case Seq(a,_,b) => a + b },
+    "expr.2 ::= expr.3 * expr.2" -> { case Seq(a,_,b) => a * b },
+    "expr ::= number" -> { case Seq(a) => a },
+    "number ::= 0" -> { _ => Number(0) },
+    "number ::= 1" -> { _ => Number(1) },
+    "number ::= 2" -> { _ => Number(2) },
+  ) map {
+    case (rule, constructor) => parseRule(rule, constructor)
+  }
 
   val grammar: Grammar[Seq[MathParserToken], Math] = {
     val empty = Grammar[Seq[MathParserToken], Math]().setTokenizer(_.map {
@@ -74,7 +104,7 @@ object Parser {
       }
       case token: ErrorToken => ("ERROR", Error(parseerror, token))
       case GroupToken(opening, tokens, closing) =>
-        ??? // Should be evaluted already in parse, TODO
+        ??? // Should be evaluted already in parse
       case MathToken(math) => ("MATH", math)
     })
     grammarRules.foldRight(empty) { (rule, grammar) => grammar.addRule(rule) }
