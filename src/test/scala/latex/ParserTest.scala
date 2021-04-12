@@ -39,4 +39,16 @@ class ParserTest extends AnyFunSuite {
   test("parse priority") {
     testParse("0+1*2", "arith1.plus(0, arith1.times(1, 2))")
   }
+
+  test("numbers") {
+    testParse("12324243", "12324243")
+  }
+
+  test("parse with whitespace") {
+    testParse("1 + 1", "arith1.plus(1, 1)")
+  }
+
+  test(raw"parse with command \cdot") {
+    testParse(raw"1 \cdot 2", "arith1.times(1, 2)")
+  }
 }
