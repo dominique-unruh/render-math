@@ -9,7 +9,7 @@ class ParserTest extends AnyFunSuite {
   test("evaluateMacros") {
     val text = "1\\pm \\TESTduplicate 2 \\TESTduplicate {hello}"
     val tokens = tokenize(text)
-    println("TOKENS", tokens)
+    println(("TOKENS", tokens))
     val mathTokens = Parser.evaluateMacros(tokens)
     println("MATHTOKENS")
     for (m <- mathTokens)
@@ -18,7 +18,7 @@ class ParserTest extends AnyFunSuite {
 
   def testParse(text: String, expected: String) = {
       val tokens = tokenize(text)
-      println("TOKENS", tokens)
+      println(("TOKENS", tokens))
       val math = Parser.parse(tokens)
       println("MATH " + math)
       assert(math.toString == expected)

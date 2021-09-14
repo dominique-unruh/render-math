@@ -117,8 +117,8 @@ final class Grammar[Text, Result] private (private val inverted2Rules: Map[Len2R
     matchesNonterminalList(nonterminal, minPriority, tokenizer(text))
   }
 
-  def matchesNonterminalList(nonterminal: Nonterminal, minPriority: Priority = smallestPriority,
-                             text: Seq[ParseResult]): List[Result] = {
+  private def matchesNonterminalList(nonterminal: Nonterminal, minPriority: Priority = smallestPriority,
+                                     text: Seq[ParseResult]): List[Result] = {
     def apply1Rules(results: Seq[ParseResult]): List[ParseResult] = {
       // Apply len1 rules
       var results1 : List[ParseResult] = Nil

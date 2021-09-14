@@ -9,10 +9,12 @@
     <option name="testKind" value="All in package" />
     <option name="classBuf">
       <list>
-        <option value="de.unruh.rendermath.LaTeXTest" />
-        <option value="de.unruh.rendermath.GrammarTest" />
         <option value="de.unruh.rendermath.SymbolNameTest" />
+        <option value="de.unruh.rendermath.GrammarTest" />
+        <option value="de.unruh.rendermath.latex.ParserTest" />
+        <option value="de.unruh.rendermath.latex.RendererTest" />
         <option value="de.unruh.rendermath.latex.TokenizerTest" />
+        <option value="de.unruh.rendermath.latex.DocumentProcessorTest" />
       </list>
     </option>
     <option name="shortenClasspath" value="NONE" />

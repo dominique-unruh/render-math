@@ -1,15 +1,39 @@
-%! Author = unruh
-%! Date = 4/15/21
 
-% Preamble
 \documentclass[11pt]{article}
 
-% Packages
+\usepackage{xcolor}
 \usepackage{amsmath}
+\usepackage{etoolbox}
 
-% Document
+\makeatletter
+\newwrite\formula@out
+\immediate\openout\formula@out=\jobname.formulas.out
+
+\InputIfFileExists{\jobname.formulas.in}{}{}
+
+\newcount\formula@count
+\newrobustcmd{\formula}[1]{%
+  \def\@tempa{#1}%
+  \immediate\write\formula@out{FORMULA[\number\formula@count] = \expandafter\strip@prefix\meaning\@tempa}%
+  \ifcsstring{formulas@F@\number\formula@count}{#1}{\formula@known}{\formula@unknown{#1}}%
+  \advance\formula@count1\relax
+}
+
+\newcommand\formula@known{%
+  \ensuremath{\csuse{formulas@R@\number\formula@count}}
+}
+
+\newcommand\formula@unknown[1]{%
+  \color{red}{\ensuremath{#1}}}
+
+
 \begin{document}
 
+\Huge
 
+\newcommand\gobbledeegook[1]{X#1}
+
+\formula{x\cdot (1+2)}
+\formula{x\cdot (1+2)\cdot{1+2}}
 
 \end{document}

@@ -1,6 +1,6 @@
 package de.unruh.rendermath.latex
 
-import de.unruh.rendermath.{Application, Error, Grammar, Math, Number, SymbolName}
+import de.unruh.rendermath.{Application, Error, Grammar, Math, Number, SymbolName, Variable}
 import de.unruh.rendermath.Grammar.{Constructor, Priority, RhsElement, Rule, largestPriority, smallestPriority}
 import de.unruh.rendermath.SymbolName.arith1
 import de.unruh.rendermath.SymbolName.rendermath.parseerror
@@ -96,8 +96,10 @@ object Parser {
     "expr.2 ::= expr.3 \\cdot expr.2" -> infixConstructor(arith1.times),
     "expr.2 ::= expr.3 / expr.2" -> infixConstructor(arith1.divide),
 
+    "expr ::= ( expr )" -> { case Seq(_, a, _) => a },
     "expr ::= MATH" -> copyConstructor,
     "expr ::= number" -> copyConstructor,
+    "expr ::= variable" -> copyConstructor,
 
     "number ::= digit" -> copyConstructor,
     "number ::= number digit" -> { case Seq(Number(a), Number(b)) => Number(a*10+b) },
@@ -111,6 +113,8 @@ object Parser {
     "digit ::= 7" -> { _ => Number(7) },
     "digit ::= 8" -> { _ => Number(8) },
     "digit ::= 9" -> { _ => Number(9) },
+
+    "variable ::= x" -> { _ => Variable("x") }
   ) map {
     case (rule, constructor) => parseRule(rule, constructor)
   }

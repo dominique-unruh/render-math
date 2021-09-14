@@ -9,7 +9,7 @@ import java.awt.Color
 import java.awt.image.BufferedImage
 import scala.collection.mutable.ListBuffer
 
-object LaTeX {
+object Renderer {
   private val Parenthesis = Math.attributePattern(rendermath.parenthesis)
 
 

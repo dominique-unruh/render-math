@@ -117,6 +117,7 @@ object Number {
 
 final class Variable private (val name:String, override val attributes: Map[SymbolName, Any]) extends Math {
   override def setAttributes(attributes: Map[SymbolName, Any]): Math = new Variable(name, attributes)
+  override def toString: String = "$" + name
 }
 
 object Variable {

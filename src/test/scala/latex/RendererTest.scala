@@ -2,13 +2,13 @@ package de.unruh.rendermath
 package latex
 
 import SymbolName.rendermath
-import latex.LaTeX.{toAsciiArt, toLaTeX}
+import latex.Renderer.{toAsciiArt, toLaTeX}
 
 import org.scalatest.funsuite.AnyFunSuite
 
 import Implicits._
 
-class LaTeXTest extends AnyFunSuite {
+class RendererTest extends AnyFunSuite {
   test ("render simple") {
     assert(toLaTeX(Number(3)) == "3")
     assert(toLaTeX((3:Math) + 4) == "3+4")
