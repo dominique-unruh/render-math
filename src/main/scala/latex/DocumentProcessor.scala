@@ -10,6 +10,8 @@ import scala.collection.AbstractIterator
 import scala.io.Source
 import scala.util.Using
 
+import de.unruh.rendermath.processors.Processor
+
 class DocumentProcessor(texfile: Path) {
 //  val directory = texfile.getParent
   def basename = texfile.getFileName.toString.stripSuffix(".tex")
@@ -23,8 +25,12 @@ class DocumentProcessor(texfile: Path) {
         line match {
           case DocumentProcessor.formulaLineRegex(numberStr, formula) =>
             val number = numberStr.toInt
-            val math = Parser.parse(Tokenizer.tokenize(formula))
+            var math = Parser.parse(Tokenizer.tokenize(formula))
             logger.debug((number, formula, math).toString)
+            for (processor <- Processor.processors) {
+              math = processor.process(math)
+              logger.debug(s"Processor $processor -> $math")
+            }
             val rendered = Renderer.toLaTeX(math)
             writer.write(s"\\csdef{formulas@F@$number}{$formula}\n")
             writer.write(s"\\csdef{formulas@R@$number}{$rendered}\n")

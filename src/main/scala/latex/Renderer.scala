@@ -20,7 +20,7 @@ object Renderer {
       case true => s"\\left(${toLaTeX(math)}\\right)"
     }
     case Application(arith1.plus, args@_*) => args.map(toLaTeX).mkString("+")
-    case Application(arith1.times, args@_*) => args.map(toLaTeX).mkString("*")
+    case Application(arith1.times, args@_*) => args.map(toLaTeX).mkString("\\cdot ")
     case Application(arith1.divide, arg1, arg2) =>
       s"\\frac{${toLaTeX(arg1)}}{${toLaTeX(arg2)}}"
     case Symbol(name) =>

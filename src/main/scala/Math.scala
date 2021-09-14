@@ -14,6 +14,9 @@ sealed trait Math {
   final def setAttribute[A](name: AttributeName[A], value: A): Math =
     setAttributes(attributes.updated(name.symbolName, value))
 
+  final def getAttribute[A](name: AttributeName[A]): Option[A] =
+    attributes.get(name.symbolName).map(_.asInstanceOf[A])
+
   // Convenience methods
   final def +(other: Math): Application = Application(arith1.plus, this, other)
   final def -(other: Math): Application = Application(arith1.minus, this, other)
@@ -67,6 +70,7 @@ object SymbolName {
   object rendermath {
     val parenthesis = a[Boolean]
     val parseerror = s
+    val invalid = s
   }
 }
 
@@ -84,6 +88,8 @@ final class Application private (val head:Math, val args:List[Math], override va
     case head : Symbol => s"$head(${args.mkString(", ")})"
     case _ => s"($head)(${args.mkString(", ")})"
   }
+
+  def setArguments(args: Seq[Math]) = new Application(head, args.toList, attributes)
 }
 
 object Application {
